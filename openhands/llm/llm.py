@@ -844,16 +844,12 @@ class LLM(RetryMixin, DebugMixin):
                 message.force_string_serializer = True
             if 'kimi-k2-instruct' in self.config.model and 'groq' in self.config.model:
                 message.force_string_serializer = True
-            if any(
-                k in self.config.model
-                for k in (
-                    'openrouter/anthropic/claude-sonnet-4',
-                    'openrouter/anthropic/claude-opus-4-6',
-                    'openrouter/anthropic/claude-sonnet-4-5-20250929',
-                    'openrouter/anthropic/claude-haiku-4-5-20251001',
-                )
-            ):
-                message.force_string_serializer = True
+            # Removed: upstream forced string serializer for openrouter/anthropic/*
+            # models, which dropped ImageContent from tool responses. OpenRouter
+            # supports the full OpenAI SDK including multimodal content arrays
+            # for all providers, so this workaround is unnecessary and breaks
+            # vision-capable tool responses (e.g. ScreenshotObservation).
+            # See: cua-verse/OpenHands@agenthle commit for rationale.
 
         # let pydantic handle the serialization
         return [message.model_dump() for message in messages]
