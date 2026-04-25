@@ -471,8 +471,12 @@ class Runtime(FileEditRuntimeMixin):
 
         # this might be unnecessary, since source should be set by the event stream when we're here
         source = event.source if event.source else EventSource.AGENT
-        if isinstance(observation, NullObservation):
-            # don't add null observations to the event stream
+        if isinstance(observation, NullObservation) and not getattr(observation, '_cause', 0):
+            # Skip truly empty NullObservations (no associated action).
+            # NullObservation with _cause > 0 (from non-runnable actions
+            # like RecallAction) MUST reach the event stream so the
+            # controller can clear _pending_action and should_step can
+            # trigger the next step.
             return
         self.event_stream.add_event(observation, source)  # type: ignore[arg-type]
 
