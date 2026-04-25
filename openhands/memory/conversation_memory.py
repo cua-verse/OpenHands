@@ -13,6 +13,7 @@ from openhands.events.action import (
     AgentThinkAction,
     BrowseInteractiveAction,
     BrowseURLAction,
+    ChangeAgentStateAction,
     CmdRunAction,
     FileEditAction,
     FileReadAction,
