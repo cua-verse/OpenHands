@@ -43,6 +43,14 @@ from openhands.events.observation.agent import (
 )
 from openhands.events.observation.error import ErrorObservation
 from openhands.events.observation.mcp import MCPObservation
+
+# agenthle: ScreenshotObservation for GUI desktop screenshots (not browser).
+# Import is guarded because this module only exists when the agenthle adapter
+# layer is on sys.path; upstream-only installs won't have it.
+try:
+    from agenthle.orchestration.agents.openhands.observations import ScreenshotObservation as _ScreenshotObs
+except ImportError:
+    _ScreenshotObs = None
 from openhands.events.observation.observation import Observation
 from openhands.events.recall_type import RecallType
 from openhands.events.serialization.event import truncate_content
@@ -242,7 +250,16 @@ class ConversationMemory:
                 MCPAction,
                 TaskTrackingAction,
             ),
-        ) or (isinstance(action, CmdRunAction) and action.source == 'agent'):
+        ) or (isinstance(action, CmdRunAction) and action.source == 'agent') or (
+            # Catch-all for external Action subclasses (e.g. GUI Actions from
+            # agenthle adapter) that have tool_call_metadata but aren't in the
+            # explicit type list above. Without this, their assistant tool_calls
+            # message never enters pending_tool_call_action_messages and the
+            # matching tool response gets silently dropped from the final
+            # message list.
+            hasattr(action, 'tool_call_metadata') and action.tool_call_metadata is not None
+            and not isinstance(action, (AgentFinishAction, MessageAction, ChangeAgentStateAction))
+        ):
             tool_metadata = action.tool_call_metadata
 
             # Allow user actions to skip tool metadata validation
@@ -520,6 +537,15 @@ class ConversationMemory:
         elif isinstance(obs, TaskTrackingObservation):
             text = truncate_content(obs.content, max_message_chars)
             message = Message(role='user', content=[TextContent(text=text)])
+        elif _ScreenshotObs is not None and isinstance(obs, _ScreenshotObs):
+            # agenthle: GUI desktop screenshot with base64 PNG data URL.
+            # Mirrors BrowserOutputObservation's image handling above but
+            # without the SOM / enable_som_visual_browsing gates.
+            text = obs.content or 'Screenshot captured.'
+            content = [TextContent(text=text)]
+            if vision_is_active and self._is_valid_image_url(obs.screenshot):
+                content.append(ImageContent(image_urls=[obs.screenshot]))
+            message = Message(role='user', content=content)
         elif isinstance(obs, ErrorObservation):
             text = truncate_content(obs.content, max_message_chars)
             text += '\n[Error occurred in processing last action]'

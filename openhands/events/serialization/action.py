@@ -54,6 +54,14 @@ actions = (
 
 ACTION_TYPE_TO_CLASS = {action_class.action: action_class for action_class in actions}  # type: ignore[attr-defined]
 
+# agenthle: register GUI Actions so Runtime.run_action() dispatches them.
+try:
+    from agenthle.orchestration.agents.openhands.gui_actions import _GUI_ACTIONS
+    for _cls in _GUI_ACTIONS:
+        ACTION_TYPE_TO_CLASS.setdefault(_cls.action, _cls)
+except ImportError:
+    pass  # not running under agenthle adapter
+
 
 def handle_action_deprecated_args(args: dict[str, Any]) -> dict[str, Any]:
     # keep_prompt has been deprecated in https://github.com/OpenHands/OpenHands/pull/4881

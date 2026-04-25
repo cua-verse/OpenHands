@@ -55,10 +55,18 @@ observations = (
     LoopDetectionObservation,
 )
 
-OBSERVATION_TYPE_TO_CLASS = {
+OBSERVATION_TYPE_TO_CLASS: dict[str, type[Observation]] = {
     observation_class.observation: observation_class  # type: ignore[attr-defined]
     for observation_class in observations
 }
+
+# agenthle: register ScreenshotObservation so event_stream's
+# event_to_dict → event_from_dict round-trip doesn't crash.
+try:
+    from agenthle.orchestration.agents.openhands.observations import ScreenshotObservation as _ScreenshotObs
+    OBSERVATION_TYPE_TO_CLASS.setdefault(_ScreenshotObs.observation, _ScreenshotObs)
+except ImportError:
+    pass  # not running under agenthle adapter
 
 
 def _update_cmd_output_metadata(
